@@ -1,111 +1,157 @@
+1. Python Version
 
-# SecureChat – Assignment #2 (CS-3002 Information Security, Fall 2025)
+Python 3.10+ recommended.
 
-This repository is the **official code skeleton** for your Assignment #2.  
-You will build a **console-based, PKI-enabled Secure Chat System** in **Python**, demonstrating how cryptographic primitives combine to achieve:
-
-**Confidentiality, Integrity, Authenticity, and Non-Repudiation (CIANR)**.
+2. Install Dependencies
+pip install -r requirements.txt
 
 
-## 🧩 Overview
+Includes:
 
-You are provided only with the **project skeleton and file hierarchy**.  
-Each file contains docstrings and `TODO` markers describing what to implement.
+cryptography
 
-Your task is to:
-- Implement the **application-layer protocol**.
-- Integrate cryptographic primitives correctly to satisfy the assignment spec.
-- Produce evidence of security properties via Wireshark, replay/tamper tests, and signed session receipts.
+PyMySQL
 
-## 🏗️ Folder Structure
-```
-securechat-skeleton/
-├─ app/
-│  ├─ client.py              # Client workflow (plain TCP, no TLS)
-│  ├─ server.py              # Server workflow (plain TCP, no TLS)
-│  ├─ crypto/
-│  │  ├─ aes.py              # AES-128(ECB)+PKCS#7 (use cryptography lib)
-│  │  ├─ dh.py               # Classic DH helpers + key derivation
-│  │  ├─ pki.py              # X.509 validation (CA signature, validity, CN)
-│  │  └─ sign.py             # RSA SHA-256 sign/verify (PKCS#1 v1.5)
-│  ├─ common/
-│  │  ├─ protocol.py         # Pydantic message models (hello/login/msg/receipt)
-│  │  └─ utils.py            # Helpers (base64, now_ms, sha256_hex)
-│  └─ storage/
-│     ├─ db.py               # MySQL user store (salted SHA-256 passwords)
-│     └─ transcript.py       # Append-only transcript + transcript hash
-├─ scripts/
-│  ├─ gen_ca.py              # Create Root CA (RSA + self-signed X.509)
-│  └─ gen_cert.py            # Issue client/server certs signed by Root CA
-├─ tests/manual/NOTES.md     # Manual testing + Wireshark evidence checklist
-├─ certs/.keep               # Local certs/keys (gitignored)
-├─ transcripts/.keep         # Session logs (gitignored)
-├─ .env.example              # Sample configuration (no secrets)
-├─ .gitignore                # Ignore secrets, binaries, logs, and certs
-├─ requirements.txt          # Minimal dependencies
-└─ .github/workflows/ci.yml  # Compile-only sanity check (no execution)
-```
+python-dotenv
 
-## ⚙️ Setup Instructions
+pydantic
 
-1. **Fork this repository** to your own GitHub account(using official nu email).  
-   All development and commits must be performed in your fork.
+rich
 
-2. **Set up environment**:
-   ```bash
-   python3 -m venv .venv && source .venv/bin/activate
-   pip install -r requirements.txt
-   cp .env.example .env
-   ```
+3. Private Keys Not Committed
 
-3. **Initialize MySQL** (recommended via Docker):
-   ```bash
-   docker run -d --name securechat-db        -e MYSQL_ROOT_PASSWORD=rootpass        -e MYSQL_DATABASE=securechat        -e MYSQL_USER=scuser        -e MYSQL_PASSWORD=scpass        -p 3306:3306 mysql:8
-   ```
+.gitignore ensures:
 
-4. **Create tables**:
-   ```bash
-   python -m app.storage.db --init
-   ```
+certs/*_key.pem
+tests/last_sent_msg.json
+transcripts/
+chat.db
 
-5. **Generate certificates** (after implementing the scripts):
-   ```bash
-   python scripts/gen_ca.py --name "FAST-NU Root CA"
-   python scripts/gen_cert.py --cn server.local --out certs/server
-   python scripts/gen_cert.py --cn client.local --out certs/client
-   ```
+4. SQLite Database
 
-6. **Run components** (after implementation):
-   ```bash
-   python -m app.server
-   # in another terminal:
-   python -m app.client
-   ```
+No MySQL server needed.
+SQLite file auto-creates as chat.db.
 
-## 🚫 Important Rules
+Execution Steps
+STEP 1 — Create virtual environment
+python -m venv .venv
+.venv\Scripts\Activate
 
-- **Do not use TLS/SSL or any secure-channel abstraction**  
-  (e.g., `ssl`, HTTPS, WSS, OpenSSL socket wrappers).  
-  All crypto operations must occur **explicitly** at the application layer.
+STEP 2 — Install requirements
+pip install -r requirements.txt
 
-- You are **not required** to implement AES, RSA, or DH math, Use any of the available libraries.
-- Do **not commit secrets** (certs, private keys, salts, `.env` values).
-- Your commits must reflect progressive development — at least **10 meaningful commits**.
+STEP 3 — Generate CA and certificates
+python scripts\gen_ca.py
+python scripts\gen_cert.py server
+python scripts\gen_cert.py client
 
-## 🧾 Deliverables
+STEP 4 — Initialize SQLite Database
+python -c "from app.storage import db as dbmod; dbmod.init_db(); print('DB Ready')"
 
-When submitting on Google Classroom (GCR):
+STEP 5 — Run the server
 
-1. A ZIP of your **GitHub fork** (repository).
-2. MySQL schema dump and a few sample records.
-3. Updated **README.md** explaining setup, usage, and test outputs.
-4. `RollNumber-FullName-Report-A02.docx`
-5. `RollNumber-FullName-TestReport-A02.docx`
+Open a new terminal:
 
-## 🧪 Test Evidence Checklist
+.venv\Scripts\Activate
+python -m app.server
 
-✔ Wireshark capture (encrypted payloads only)  
-✔ Invalid/self-signed cert rejected (`BAD_CERT`)  
-✔ Tamper test → signature verification fails (`SIG_FAIL`)  
-✔ Replay test → rejected by seqno (`REPLAY`)  
-✔ Non-repudiation → exported transcript + signed SessionReceipt verified offline  
+
+Expected:
+
+Server listening on 9000
+
+STEP 6 — Register a new user
+python -m app.client register --email test@example.com --username testuser --pwd "Test@123"
+
+STEP 7 — Login and send encrypted message
+python -m app.client login --email test@example.com --pwd "Test@123"
+
+
+Client automatically performs:
+
+PKI validation
+
+DH control-plane
+
+Encrypted login
+
+Session DH
+
+Sends a signed + encrypted chat message
+
+Produces:
+
+tests/last_sent_msg.json
+
+
+(used in replay attacks test)
+
+Test Scripts
+1. Tampering Test
+
+Detects transcript manipulation:
+
+python tests\tamper_verify.py
+
+
+Expected:
+
+MATCH? False
+
+2. Replay Attack Test
+
+Requires tests/last_sent_msg.json:
+
+python -m tests.manual.replay_test
+
+
+Expected server output:
+
+{'type': 'replay', 'msg': 'duplicate message'}
+
+3. Invalid Certificate Test
+python tests\manual\invalid_test.py
+
+
+Expected:
+
+{ "type": "bad_cert", ... }
+
+Sample Inputs / Outputs
+Register Input
+{
+  "type": "register",
+  "email": "test@example.com",
+  "username": "testuser",
+  "pwd": "Test@123"
+}
+
+Encrypted Register (captured on wire)
+{
+  "type": "register",
+  "ct": "8feC21abc93ff...=="    <-- AES ciphertext
+}
+
+Login Output
+Login OK. Username: testuser
+Session key established. Enter chat mode.
+ACK: {'type': 'msg_ok', 'seq': 1}
+Session end response: { 'type': 'session_receipt', ... }
+
+Security Guarantees Demonstrated
+
+Confidentiality: AES-128 encryption (DH-derived key)
+
+Integrity: RSA signatures per message
+
+Authentication: Certificates validated against CA
+
+Non-repudiation: Transcript + Receipt; Offline verification matches SHA256
+
+Replay Prevention: Sequence numbers enforced
+
+Tamper Detection: SHA256(m) mismatch → SIG_FAIL
+
+Link to Repository:
+
+https://github.com/fizajameel1/info-a1
