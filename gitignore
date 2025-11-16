@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+*.sqlite3
+*.db
+*.sql
+
+# certs / keys
+certs/
+*.pem
+*.key
+
+# IDE
+.vscode/
+.idea/
